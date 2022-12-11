@@ -2,13 +2,12 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-#include "Gateware.h"
 
 std::ifstream input;
-std::string filename = "../GameLevel.txt";
 
-std::vector<GW::MATH::GMATRIXF> world;
+std::vector<GW::MATH::GMATRIXF> worldMatrices;
 std::vector<std::string> names;
+std::string filename = "../GameLevel.txt";
 
 void openFile()
 {
@@ -29,7 +28,7 @@ void openFile()
 
 				std::getline(input, buffer2);
 
-				names.push_back(buffer2.substr(0, buffer2.find('.')) + ".h2b");
+				names.push_back("../h2bs/" + buffer2.substr(0, buffer2.find('.') + 1) + "h2b");
 
 				GW::MATH::GVECTORF rows[4];
 
@@ -53,28 +52,29 @@ void openFile()
 					rows[i].w = atof(buffer2.c_str());
 				}
 
-				world.push_back(GW::MATH::GMATRIXF{ rows[0], rows[1], rows[2], rows[3] });
+				worldMatrices.push_back(GW::MATH::GMATRIXF{ rows[0], rows[1], rows[2], rows[3] });
 			}
 		}
-		for (int i = 0; i < world.size(); i++)
+
+		for (int i = 0; i < worldMatrices.size(); i++)
 		{
-			std::cout << names[i] << std::endl;
-			std::cout << world[i].row1.x << ", ";
-			std::cout << world[i].row1.y << ", ";
-			std::cout << world[i].row1.z << ", ";
-			std::cout << world[i].row1.w << std::endl;
-			std::cout << world[i].row2.x << ", ";
-			std::cout << world[i].row2.y << ", ";
-			std::cout << world[i].row2.z << ", ";
-			std::cout << world[i].row2.w << std::endl;
-			std::cout << world[i].row3.x << ", ";
-			std::cout << world[i].row3.y << ", ";
-			std::cout << world[i].row3.z << ", ";
-			std::cout << world[i].row3.w << std::endl;
-			std::cout << world[i].row4.x << ", ";
-			std::cout << world[i].row4.y << ", ";
-			std::cout << world[i].row4.z << ", ";
-			std::cout << world[i].row4.w << std::endl << std::endl;
+			/*std::cout << names[i] << std::endl;
+			std::cout << worldMatrices[i].row1.x << ", ";
+			std::cout << worldMatrices[i].row1.y << ", ";
+			std::cout << worldMatrices[i].row1.z << ", ";
+			std::cout << worldMatrices[i].row1.w << std::endl;
+			std::cout << worldMatrices[i].row2.x << ", ";
+			std::cout << worldMatrices[i].row2.y << ", ";
+			std::cout << worldMatrices[i].row2.z << ", ";
+			std::cout << worldMatrices[i].row2.w << std::endl;
+			std::cout << worldMatrices[i].row3.x << ", ";
+			std::cout << worldMatrices[i].row3.y << ", ";
+			std::cout << worldMatrices[i].row3.z << ", ";
+			std::cout << worldMatrices[i].row3.w << std::endl;
+			std::cout << worldMatrices[i].row4.x << ", ";
+			std::cout << worldMatrices[i].row4.y << ", ";
+			std::cout << worldMatrices[i].row4.z << ", ";
+			std::cout << worldMatrices[i].row4.w << std::endl << std::endl;*/
 		}
 
 		input.close();
