@@ -10,10 +10,12 @@ class Level_Data
 public:
 	std::vector<std::vector<H2B::MATERIAL>> mats;
 	std::vector<std::vector<H2B::VERTEX>> vertices;
-	std::vector<unsigned> indices[10];
-	std::vector<H2B::MESH> meshes[10];
-	std::vector<H2B::BATCH> batches[10];
+	std::vector<std::vector<unsigned>> indices;
+	std::vector<std::vector<H2B::MESH>> meshes;
+	std::vector<std::vector<H2B::BATCH>> batches;
 	std::vector<int> meshCount;
+	std::vector<int> vertexCount;
+	std::vector<int> indexCount;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource>	allVertexBuffer;
 	Microsoft::WRL::ComPtr<ID3D12Resource>	allIndexBuffer;
@@ -24,26 +26,32 @@ public:
 	{
 		H2B::Parser parser;
 		openFile();
-		/*for (int i = 0; i < 20; i++)
+		for (int i = 0; i < names.size(); i++)
 		{
-			std::string filepath = "../h2bs/" + names[i];
-			std::cout << std::endl << filepath << " ";
-			if (parser.Parse(filepath.c_str()))
+			if (parser.Parse(names[i].c_str()))
 			{
-				std::cout << "Successful";
+				mats.push_back(parser.materials);
+				vertices.push_back(parser.vertices);
+				indices.push_back(parser.indices);
+				meshes.push_back(parser.meshes);
+				meshCount.push_back(parser.meshCount);
+				batches.push_back(parser.batches);
+				vertexCount.push_back(parser.vertexCount);
+				indexCount.push_back(parser.indexCount);
+				//std::cout << "Successful";
 			}
 			else
 			{
-				std::cout << "Failed to parse data";
+				std::cout << names[i] << ": Failed to parse data" << std::endl;
 			}
-		}*/
+		}
 
-		parser.Parse("../h2bs/Bookcase_Full_Cylinder.h2b");
+		/*parser.Parse("../h2bs/Bookcase_Full_Cylinder.h2b");
 		mats.push_back(parser.materials);
 		vertices.push_back(parser.vertices);
 		indices[0] = parser.indices;
 		meshes[0] = parser.meshes;
 		meshCount.push_back(parser.meshCount);
-		batches[0] = parser.batches;
+		batches[0] = parser.batches;*/
 	}
 };

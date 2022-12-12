@@ -28,7 +28,14 @@ void openFile()
 
 				std::getline(input, buffer2);
 
-				names.push_back("../h2bs/" + buffer2.substr(0, buffer2.find('.') + 1) + "h2b");
+				if (buffer2.find('.'))
+				{
+					names.push_back("../h2bs/" + buffer2.substr(0, buffer2.find('.') + 1) + "h2b");
+				}
+				else
+				{
+					names.push_back("../h2bs/" + buffer2 + "h2b");
+				}
 
 				GW::MATH::GVECTORF rows[4];
 
