@@ -38,7 +38,7 @@ public:
 		openFile();
 		for (int i = 0; i < names.size(); i++)
 		{
-			if (parser.Parse(names[i].c_str()))
+			if (parser.Parse(("../h2bs/" + names[i] + ".h2b").c_str()))
 			{
 				mats.push_back(parser.materials);
 				vertices.push_back(parser.vertices);
@@ -52,7 +52,7 @@ public:
 			}
 			else
 			{
-				std::cout << names[i] << ": Failed to parse data" << std::endl;
+				std::cout << "../h2bs/" + names[i] + ".h2b" << ": Failed to parse data" << std::endl;
 			}
 		}
 		for (int i = 0; i < lightColors.size(); i++)

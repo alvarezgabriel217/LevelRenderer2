@@ -262,6 +262,12 @@ class Renderer
 	Microsoft::WRL::ComPtr<ID3D12Resource>		indexBuffer;
 	Microsoft::WRL::ComPtr<ID3D12RootSignature>	rootSignature;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState>	pipeline;
+
+	//Skybox
+
+	Microsoft::WRL::ComPtr<ID3D12Resource>			textureResource;
+	Microsoft::WRL::ComPtr<ID3D12Resource>			textureUpload;
+
 public:
 	Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GDirectX12Surface _d3d)
 	{
@@ -306,7 +312,14 @@ public:
 		for (int i = 0; i < levelData.vertices.size(); i++)
 		{
 			MESH_DATA temp;
-			temp.world = worldMatrices[i];
+			if (names[i] == "SkyBox")
+			{
+				temp.world = worldMatrices[0];
+			}
+			else
+			{
+				temp.world = worldMatrices[i];
+			}
 			for (int j = 0; j < levelData.meshCount[i]; j++)
 			{
 				temp.material = levelData.mats[i][j].attrib;
@@ -407,6 +420,7 @@ public:
 			}
 			memoryOffset += 256;
 		}
+
 
 		//Light Constant Buffer
 		creator->CreateCommittedResource( // using UPLOAD heap for simplicity

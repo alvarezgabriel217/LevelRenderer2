@@ -12,6 +12,7 @@ std::vector<GW::MATH::GVECTORF> lightColors;
 std::vector<float> size;
 
 std::string filename = "../GameLevel.txt";
+std::string skyboxFilename = "../Skyboxes/";
 
 void openFile()
 {
@@ -27,40 +28,73 @@ void openFile()
 			{
 				std::getline(input, buffer2);
 
-				if (buffer2.find('.'))
+				if (buffer2 == "SkyBox")
 				{
-					names.push_back("../h2bs/" + buffer2.substr(0, buffer2.find('.') + 1) + "h2b");
+					names.push_back(buffer2);
+					std::getline(input, buffer2);
+					skyboxFilename += buffer2;
+
+					GW::MATH::GVECTORF rows[4];
+
+					for (int i = 0; i < 4; i++)
+					{
+						std::getline(input, buffer2);
+						buffer2 = buffer2.substr(buffer2.find('(') + 1, buffer2.find(')') - buffer2.find('(') - 1);
+
+						rows[i].x = atof(buffer2.c_str());
+
+						buffer2 = buffer2.substr(buffer2.find(',') + 1);
+
+						rows[i].y = atof(buffer2.c_str());
+
+						buffer2 = buffer2.substr(buffer2.find(',') + 1);
+
+						rows[i].z = atof(buffer2.c_str());
+
+						buffer2 = buffer2.substr(buffer2.find(',') + 1);
+
+						rows[i].w = atof(buffer2.c_str());
+					}
+
+					worldMatrices.push_back(GW::MATH::GMATRIXF{ rows[0], rows[1], rows[2], rows[3] });
 				}
 				else
 				{
-					names.push_back("../h2bs/" + buffer2 + "h2b");
+					if (buffer2.find('.'))
+					{
+						names.push_back(buffer2.substr(0, buffer2.find('.')));
+					}
+					else
+					{
+						names.push_back(buffer2);
+					}
+
+					GW::MATH::GVECTORF rows[4];
+
+					for (int i = 0; i < 4; i++)
+					{
+						std::getline(input, buffer2);
+						buffer2 = buffer2.substr(buffer2.find('(') + 1, buffer2.find(')') - buffer2.find('(') - 1);
+
+						rows[i].x = atof(buffer2.c_str());
+
+						buffer2 = buffer2.substr(buffer2.find(',') + 1);
+
+						rows[i].y = atof(buffer2.c_str());
+
+						buffer2 = buffer2.substr(buffer2.find(',') + 1);
+
+						rows[i].z = atof(buffer2.c_str());
+
+						buffer2 = buffer2.substr(buffer2.find(',') + 1);
+
+						rows[i].w = atof(buffer2.c_str());
+					}
+
+					worldMatrices.push_back(GW::MATH::GMATRIXF{ rows[0], rows[1], rows[2], rows[3] });
 				}
-
-				GW::MATH::GVECTORF rows[4];
-
-				for (int i = 0; i < 4; i++)
-				{
-					std::getline(input, buffer2);
-					buffer2 = buffer2.substr(buffer2.find('(') + 1, buffer2.find(')') - buffer2.find('(') - 1);
-
-					rows[i].x = atof(buffer2.c_str());
-
-					buffer2 = buffer2.substr(buffer2.find(',') + 1);
-
-					rows[i].y = atof(buffer2.c_str());
-
-					buffer2 = buffer2.substr(buffer2.find(',') + 1);
-
-					rows[i].z = atof(buffer2.c_str());
-
-					buffer2 = buffer2.substr(buffer2.find(',') + 1);
-
-					rows[i].w = atof(buffer2.c_str());
-				}
-
-				worldMatrices.push_back(GW::MATH::GMATRIXF{ rows[0], rows[1], rows[2], rows[3] });
 			}
-			else if(std::strcmp("LIGHT", buffer2.c_str()) == 0)
+			else if (std::strcmp("LIGHT", buffer2.c_str()) == 0)
 			{
 
 				std::getline(input, buffer2);
@@ -111,9 +145,9 @@ void openFile()
 			}
 		}
 
-		for (int i = 0; i < worldMatrices.size(); i++)
+		/*for (int i = 0; i < worldMatrices.size(); i++)
 		{
-			/*std::cout << names[i] << std::endl;
+			std::cout << names[i] << std::endl;
 			std::cout << worldMatrices[i].row1.x << ", ";
 			std::cout << worldMatrices[i].row1.y << ", ";
 			std::cout << worldMatrices[i].row1.z << ", ";
@@ -129,10 +163,10 @@ void openFile()
 			std::cout << worldMatrices[i].row4.x << ", ";
 			std::cout << worldMatrices[i].row4.y << ", ";
 			std::cout << worldMatrices[i].row4.z << ", ";
-			std::cout << worldMatrices[i].row4.w << std::endl << std::endl;*/
-		}
+			std::cout << worldMatrices[i].row4.w << std::endl << std::endl;
+		}*/
 
-		for (int i = 0; i < lightWorldMatrices.size(); i++)
+		/*for (int i = 0; i < lightWorldMatrices.size(); i++)
 		{
 			std::cout <<  std::endl;
 			std::cout << lightWorldMatrices[i].row1.x << ", ";
@@ -153,7 +187,7 @@ void openFile()
 			std::cout << lightWorldMatrices[i].row4.w << std::endl;
 			std::cout << lightColors[i].x << " " << lightColors[i].y << " " << lightColors[i].z << " " << lightColors[i].z << std::endl;
 			std::cout << "Size: " << size[i] << std::endl << std::endl;
-		}
+		}*/
 
 		input.close();
 	}
