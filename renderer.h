@@ -109,6 +109,19 @@ struct OBJ_ATTRIBUTES
 
 };
 
+struct light
+	{
+		float4 position;
+		float4 color;
+		float size;
+	};
+
+struct LIGHT_DATA
+{
+	light lights[16];
+	float4x4 padding[3];
+};
+
 struct SCENE_DATA
 {
 	float4 sunDirection;
@@ -129,6 +142,7 @@ struct MESH_DATA
 
 ConstantBuffer<SCENE_DATA> cameraAndLights : register(b0, Space0);
 ConstantBuffer<MESH_DATA> meshInfo : register(b1, Space0);
+ConstantBuffer<LIGHT_DATA> lightInfo : register(b2, Space0);
 
 struct OUTPUT_TO_RASTERIZER
 {
@@ -151,10 +165,34 @@ float4 main(OUTPUT_TO_RASTERIZER input) : SV_TARGET
 
 	float4 reflectedLight = cameraAndLights.sunColor * float4(meshInfo.material.Ks, 0) * intensity;	
 
+	//float4 point;
+	for(int i = 0; i < 1; i++)
+	{
+		float3 lightDirection = normalize(lightInfo.lights[i].position.xyz - input.posW.xyz);
+		float lightRatio2 = saturate(dot(lightDirection, input.nrW));
+		float attenuation = 1 - saturate(length(lightInfo.lights[i].position.xyz - input.posW.xyz) / lightInfo.lights[i].size);
+		//lightRatio2 = saturate(attenuation * attenuation * lightRatio2);
+		//lightRatio2 *= 366.3;
+		result += (lightRatio2 * float4(meshInfo.material.Kd, 1) * lightInfo.lights[i].color);
+	}
+
+	//float3 lightDirection = normalize(lightInfo.lights[0].position.xyz - input.posW.xyz);
+	//float lightRatio2 = saturate(dot(lightDirection, input.nrW));
+	//float attenuation = 1 - saturate(length(lightInfo.lights[0].position.xyz - input.posW.xyz) / 1.3);
+	//lightRatio2 = saturate(attenuation * attenuation * lightRatio2);
+	//lightRatio2 *= 366.3;
+	//result += (lightRatio2 * float4(meshInfo.material.Kd, 1) * lightInfo.lights[0].color);
+
 	return result + reflectedLight;
 }
 )";
 // Creation, Rendering & Cleanup
+struct LIGHT_DATA
+{
+	Level_Data::light lights[16];
+	GW::MATH::GMATRIXF padding[3];
+};
+
 struct SCENE_DATA
 {
 	GW::MATH::GVECTORF sunDirection, sunColor, sunAmbient, camPos; //lighting info
@@ -206,6 +244,7 @@ class Renderer
 
 	std::vector<MESH_DATA> meshData;
 	SCENE_DATA sceneData;
+	LIGHT_DATA lightData;
 
 	Microsoft::WRL::ComPtr <IDXGISwapChain4> swap;
 
@@ -253,13 +292,13 @@ public:
 
 		//SCENE DATA
 
-		lightDir = GW::MATH::GVECTORF{ -10, -10, 20, 0 };
+		lightDir = GW::MATH::GVECTORF{ -1, -1, 2, 0 };
 		GW::MATH::GVector::NormalizeF(lightDir, lightDir);
 		lightColor = GW::MATH::GVECTORF{ 0.9f, 0.9f, 1, 1 };
 
 		sceneData.sunColor = lightColor;
 		sceneData.sunDirection = lightDir;
-		sceneData.camPos = GW::MATH::GVECTORF{ 0.75f, 0.25f, -1.5f, 0 };
+		sceneData.camPos = GW::MATH::GVECTORF{ world.row4.x - 10,  world.row4.y - 10, world.row4.z - 10, 0 };
 		sceneData.sunAmbient = GW::MATH::GVECTORF{ 0.25f, 0.25f, 0.35f, 1 };
 
 		//MESH DATA
@@ -274,6 +313,15 @@ public:
 				meshData.push_back(temp);
 			}
 		}
+
+		//LIGHT DATA
+
+		for (int i = 0; i < levelData.lights.size(); i++)
+		{
+			lightData.lights[i] = levelData.lights[i];
+			//GW::MATH::GVector::NormalizeF(lightData.lights[i].position, lightData.lights[i].position);
+		}
+
 
 		//CREATE VERTEX BUFFER
 
@@ -334,12 +382,11 @@ public:
 		activeFrames = swap2.BufferCount;
 		memory = (sizeof(sceneData) + (sizeof(meshData[0]) * meshData.size())) * activeFrames;
 
+		//Mesh Constant Buffer
 		creator->CreateCommittedResource( // using UPLOAD heap for simplicity
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), // DEFAULT recommend  
 			D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(memory),
 			D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&levelData.constantBuffer));
-
-
 
 		int memoryOffset = 0;
 
@@ -361,8 +408,22 @@ public:
 			memoryOffset += 256;
 		}
 
+		//Light Constant Buffer
+		creator->CreateCommittedResource( // using UPLOAD heap for simplicity
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), // DEFAULT recommend  
+			D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(sizeof(lightData) * activeFrames),
+			D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&levelData.lightConstantBuffer));
+
+		for (int i = 0; i < activeFrames; i++)
+		{
+			levelData.lightConstantBuffer->Map(0, &CD3DX12_RANGE(0, 0),
+				reinterpret_cast<void**>(&transferMemoryLocation3));
+			memcpy(transferMemoryLocation3, &lightData, sizeof(lightData));
+			levelData.lightConstantBuffer->Unmap(0, nullptr);
+		}
+
 		D3D12_DESCRIPTOR_HEAP_DESC heap = {};
-		heap.NumDescriptors = 2;
+		heap.NumDescriptors = 3;
 		heap.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		heap.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		creator->CreateDescriptorHeap(&heap, IID_PPV_ARGS(&descriptorHeap));
@@ -373,6 +434,8 @@ public:
 
 		CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle0(descriptorHeap->GetCPUDescriptorHandleForHeapStart(), 0, 0);
 		creator->CreateConstantBufferView(&cbvDesc, cbvHandle0);
+
+
 
 		// Create Vertex Shader
 		UINT compilerFlags = D3DCOMPILE_ENABLE_STRICTNESS;
@@ -423,13 +486,14 @@ public:
 
 		//Create root parameters
 
-		CD3DX12_ROOT_PARAMETER rootParams[2];
+		CD3DX12_ROOT_PARAMETER rootParams[3];
 		rootParams[0].InitAsConstantBufferView(0, 0);
 		rootParams[1].InitAsConstantBufferView(1, 0);
+		rootParams[2].InitAsConstantBufferView(2, 0);
 
 		// create root signature
 		CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-		rootSignatureDesc.Init(2, rootParams, 0, nullptr,
+		rootSignatureDesc.Init(3, rootParams, 0, nullptr,
 			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 		Microsoft::WRL::ComPtr<ID3DBlob> signature;
 		D3D12SerializeRootSignature(&rootSignatureDesc,
@@ -478,6 +542,7 @@ public:
 		ID3D12DescriptorHeap* ppHeaps[] = { descriptorHeap.Get() };
 		cmd->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 		cmd->SetGraphicsRootConstantBufferView(0, levelData.constantBuffer->GetGPUVirtualAddress());
+		cmd->SetGraphicsRootConstantBufferView(2, levelData.lightConstantBuffer->GetGPUVirtualAddress());
 		cmd->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
 		cmd->SetPipelineState(pipeline.Get());
 		// now we can draw

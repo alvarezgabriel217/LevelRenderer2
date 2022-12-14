@@ -8,6 +8,13 @@ class Level_Data
 	//unsigned materialCount[10];
 
 public:
+	struct light
+	{
+		GW::MATH::GVECTORF position;
+		GW::MATH::GVECTORF color;
+		float size;
+	};
+
 	std::vector<std::vector<H2B::MATERIAL>> mats;
 	std::vector<std::vector<H2B::VERTEX>> vertices;
 	std::vector<std::vector<unsigned>> indices;
@@ -16,11 +23,14 @@ public:
 	std::vector<int> meshCount;
 	std::vector<int> vertexCount;
 	std::vector<int> indexCount;
+	std::vector<light> lights;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource>	allVertexBuffer;
 	Microsoft::WRL::ComPtr<ID3D12Resource>	allIndexBuffer;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource>	constantBuffer;
+	Microsoft::WRL::ComPtr<ID3D12Resource>	lightConstantBuffer;
+
 
 	void ParseStuff()
 	{
@@ -44,6 +54,10 @@ public:
 			{
 				std::cout << names[i] << ": Failed to parse data" << std::endl;
 			}
+		}
+		for (int i = 0; i < lightColors.size(); i++)
+		{
+			lights.push_back({lightWorldMatrices[i].row4, lightColors[i], size[i] });
 		}
 
 		/*parser.Parse("../h2bs/Bookcase_Full_Cylinder.h2b");
