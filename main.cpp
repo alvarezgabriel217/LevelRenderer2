@@ -26,6 +26,7 @@ using namespace GRAPHICS;
 // lets pop a window and use D3D12 to clear to a jade colored screen
 int main()
 {
+
 	GWindow win;
 	GEventResponder msgs;
 	GDirectX12Surface d3d12;
@@ -59,7 +60,10 @@ int main()
 						// TODO: Part 4b
 						renderer.UpdateCamera();
 						renderer.swapLevel();
-						renderer.Render(); // draw
+						if (canRender)
+						{
+							renderer.Render(); // draw
+						}
 						d3d12.EndFrame(false);
 						cmd->Release();
 					}

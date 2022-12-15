@@ -11,8 +11,10 @@ std::vector<std::string> names;
 std::vector<GW::MATH::GVECTORF> lightColors;
 std::vector<float> size;
 
-std::string filename = "../GameLevel.txt";
+std::string filename = "../Levels/GameLevel.txt";
 std::string skyboxFilename = "../Skyboxes/";
+
+bool canRender = true;
 
 void openFile()
 {
