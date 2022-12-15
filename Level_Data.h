@@ -7,33 +7,45 @@
 class Level_Data
 {
 public:
-	struct light
+	struct light //Holds the information for a point light (Radius, Color and Position)
 	{
 		GW::MATH::GVECTORF position;
 		GW::MATH::GVECTORF color;
 		float size;
 	};
 
-	struct SCENE_DATA
+	struct light2
+	{
+		GW::MATH::GMATRIXF lightData;
+	};
+
+	struct SCENE_DATA //Holds the constant information for the scene (Directional Light info, view matrix and projections/perspective matrix)
 	{
 		GW::MATH::GVECTORF sunDirection, sunColor, sunAmbient, camPos; //lighting info
 		GW::MATH::GMATRIXF viewMatrix, projectionMatrix; //viewing info
 		GW::MATH::GVECTORF padding[4];
 	};
 
-	struct MESH_DATA
+	struct MESH_DATA //Holds per-mesh data (World matrix and materials)
 	{
 		GW::MATH::GMATRIXF world; //final world space transform
 		H2B::ATTRIBUTES material; //Color/Texture of surface
 		unsigned padding[28];
 	};
 
-	struct LIGHT_DATA
+	struct LIGHT_DATA //Holds a maximum of 16 point lights
 	{
 		light lights[16];
 		GW::MATH::GMATRIXF padding[3];
 	};
 
+	struct LIGHT_DATA2 //Holds a maximum of 16 point lights
+	{
+		light2 lights[16];
+		//GW::MATH::GMATRIXF padding[3];
+	};
+
+	//VECTORS (BUFFERS)
 	std::vector<std::vector<H2B::MATERIAL>> mats;
 	std::vector<std::vector<H2B::VERTEX>> vertices;
 	std::vector<std::vector<unsigned>> indices;
@@ -43,30 +55,30 @@ public:
 	std::vector<int> vertexCount;
 	std::vector<int> indexCount;
 	std::vector<light> lights;
-
-	Microsoft::WRL::ComPtr<ID3D12Resource>	allVertexBuffer;
-	Microsoft::WRL::ComPtr<ID3D12Resource>	allIndexBuffer;
+	std::vector<light2> lights2;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource>	constantBuffer;
 	Microsoft::WRL::ComPtr<ID3D12Resource>	lightConstantBuffer;
 
-	// proxy handles
+	//PROXY HANDLES
 
 	GW::INPUT::GInput InputProxy;
 	GW::INPUT::GController ControllerProxy;
-
 	GW::MATH::GMatrix Matproxy;
+
+	//MATRICES
 	GW::MATH::GMATRIXF world;
-
 	GW::MATH::GMATRIXF view;
-
 	GW::MATH::GMATRIXF perspective;
-
 	GW::MATH::GMATRIXF camera;
 
+
+	//DIRECTIONAL LIGHT INFO
 	GW::MATH::GVECTORF lightDir;
 	GW::MATH::GVECTORF lightColor;
 
+
+	//TIMER
 	std::chrono::high_resolution_clock::time_point start;
 	std::chrono::high_resolution_clock::time_point end;
 	bool running = false;
@@ -74,21 +86,26 @@ public:
 
 	float aspectRatio;
 
+
+	//STRUCTS
 	std::vector<MESH_DATA> meshData;
 	SCENE_DATA sceneData;
 	LIGHT_DATA lightData;
+	LIGHT_DATA2 lightData2;
 
 	Microsoft::WRL::ComPtr <IDXGISwapChain4> swap;
 
+	//MEMORY MANAGEMENT
 	int activeFrames;
-
 	int memory;
-
-	Microsoft::WRL::ComPtr <ID3D12DescriptorHeap> descriptorHeap;
-
 	UINT8* transferMemoryLocation3;
 	UINT8* transferMemoryLocation4;
 
+
+	Microsoft::WRL::ComPtr <ID3D12DescriptorHeap> descriptorHeap;
+
+
+	//VIEWS
 	D3D12_VERTEX_BUFFER_VIEW					vertexView;
 	Microsoft::WRL::ComPtr<ID3D12Resource>		vertexBuffer;
 	D3D12_INDEX_BUFFER_VIEW						indexView;
@@ -96,8 +113,8 @@ public:
 	Microsoft::WRL::ComPtr<ID3D12RootSignature>	rootSignature;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState>	pipeline;
 
-	//Skybox
-
+	//SKYBOX
+	unsigned skyboxIndex;
 	Microsoft::WRL::ComPtr<ID3D12Resource>			textureResource;
 	Microsoft::WRL::ComPtr<ID3D12Resource>			textureUpload;
 
@@ -129,6 +146,10 @@ public:
 		for (int i = 0; i < lightColors.size(); i++)
 		{
 			lights.push_back({ lightWorldMatrices[i].row4, lightColors[i], size[i] });
+		}
+		for (int i = 0; i < lightColors.size(); i++)
+		{
+			lights2.push_back({ lightColors[i], {0, 0, 0, 0}, {size[i], 0, 0, 0}, lightWorldMatrices[i].row4 });
 		}
 	}
 
@@ -169,6 +190,7 @@ public:
 			MESH_DATA temp;
 			if (names[i] == "SkyBox")
 			{
+				skyboxIndex = i;
 				temp.world = worldMatrices[0];
 			}
 			else
@@ -187,6 +209,12 @@ public:
 		for (int i = 0; i < lights.size(); i++)
 		{
 			lightData.lights[i] = lights[i];
+			//GW::MATH::GVector::NormalizeF(lightData.lights[i].position, lightData.lights[i].position);
+		}
+
+		for (int i = 0; i < lights2.size(); i++)
+		{
+			lightData2.lights[i] = lights2[i];
 			//GW::MATH::GVector::NormalizeF(lightData.lights[i].position, lightData.lights[i].position);
 		}
 
@@ -280,7 +308,7 @@ public:
 		//Light Constant Buffer
 		creator->CreateCommittedResource( // using UPLOAD heap for simplicity
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), // DEFAULT recommend  
-			D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(sizeof(lightData) * activeFrames),
+			D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(sizeof(lightData2) * activeFrames),
 			D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&lightConstantBuffer));
 
 		memoryOffset = 0;
@@ -289,9 +317,9 @@ public:
 		{
 			lightConstantBuffer->Map(0, &CD3DX12_RANGE(0, 0),
 				reinterpret_cast<void**>(&transferMemoryLocation4));
-			memcpy(transferMemoryLocation4 + memoryOffset, &lightData, sizeof(lightData));
+			memcpy(transferMemoryLocation4 + memoryOffset, &lightData2, sizeof(lightData2));
 			lightConstantBuffer->Unmap(0, nullptr);
-			memoryOffset += sizeof(lightData);
+			memoryOffset += sizeof(lightData2);
 		}
 
 		D3D12_DESCRIPTOR_HEAP_DESC heap = {};

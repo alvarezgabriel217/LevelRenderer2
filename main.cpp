@@ -60,10 +60,10 @@ int main()
 						// TODO: Part 4b
 						renderer.UpdateCamera();
 						renderer.swapLevel();
-						if (canRender)
-						{
-							renderer.Render(); // draw
-						}
+
+
+						renderer.Render(); // draw
+
 						d3d12.EndFrame(false);
 						cmd->Release();
 					}

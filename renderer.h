@@ -111,16 +111,26 @@ struct OBJ_ATTRIBUTES
 };
 
 struct light
-	{
-		float4 position;
-		float4 color;
-		float size;
-	};
+{
+	float4 position;
+	float4 color;
+	float size;
+};
+
+struct light2
+{
+	float4x4 lightData;
+};
 
 struct LIGHT_DATA
 {
 	light lights[7];
 	//float4x4 padding[3];
+};
+
+struct LIGHT_DATA2
+{
+	light2 lights[16];
 };
 
 struct SCENE_DATA
@@ -143,7 +153,7 @@ struct MESH_DATA
 
 ConstantBuffer<SCENE_DATA> cameraAndLights : register(b0, Space0);
 ConstantBuffer<MESH_DATA> meshInfo : register(b1, Space0);
-ConstantBuffer<LIGHT_DATA> lightInfo : register(b2, Space0);
+ConstantBuffer<LIGHT_DATA2> lightInfo : register(b2, Space0);
 
 struct OUTPUT_TO_RASTERIZER
 {
@@ -154,37 +164,36 @@ struct OUTPUT_TO_RASTERIZER
 
 float4 main(OUTPUT_TO_RASTERIZER input) : SV_TARGET 
 {	
+	//DIRECTIONAL LIGHTING
 	input.nrW = normalize(input.nrW);
 	float3 sunDic = normalize(cameraAndLights.sunDirection.xyz);
 	float lightRatio = saturate(dot(-sunDic, input.nrW));
 	lightRatio = saturate(lightRatio + cameraAndLights.sunAmbient);
-	float4 result = lightRatio * cameraAndLights.sunColor * float4(meshInfo.material.Kd, 1);
+	float4 directional = lightRatio * cameraAndLights.sunColor;
 
+	//SPECULAR REFLECTION
 	float3 viewDir = normalize(cameraAndLights.camPos.xyz - input.posW.xyz);
 	float3 halfVector = normalize(-sunDic + viewDir);
 	float intensity = max(pow(saturate(dot(input.nrW, halfVector)), (meshInfo.material.Ns + 0.00001f)), 0);
 
-	float4 reflectedLight = cameraAndLights.sunColor * float4(meshInfo.material.Ks, 0) * intensity;	
+	float4 specular = cameraAndLights.sunColor * float4(meshInfo.material.Ks, 0) * intensity;	
 
-	//float4 point;
-	for(int i = 0; i < 1; i++)
+	//POINT LIGHTING
+	float4 pointSum = (0, 0, 0, 0);
+	for(int i = 0; i < 16; i++)
 	{
-		float3 lightDirection = normalize(lightInfo.lights[3].position.xyz - input.posW.xyz);
-		float lightRatio2 = saturate(dot(lightDirection, input.nrW));
-		float attenuation = 1 - saturate(length(lightInfo.lights[3].position.xyz - input.posW.xyz) / lightInfo.lights[3].size);
-		//lightRatio2 = saturate(attenuation * attenuation * lightRatio2);
-		//lightRatio2 *= 366.3;
-		result += (lightRatio2 * float4(meshInfo.material.Kd, 1) * lightInfo.lights[3].color);
+		if(lightInfo.lights[i].lightData[2].x > 0)
+		{
+
+			float3 lightDirection = normalize(lightInfo.lights[i].lightData[3].xyz - input.posW.xyz);
+			float lightRatio2 = saturate(dot(lightDirection, input.nrW));
+			float attenuation = 1.0f - saturate(length(lightInfo.lights[i].lightData[3].xyz - input.posW.xyz) / (lightInfo.lights[i].lightData[2].x * 10));
+			lightRatio2 *= pow(attenuation, 2);
+			pointSum += lightRatio2 * lightInfo.lights[i].lightData[0];
+		}
 	}
 
-	//float3 lightDirection = normalize(lightInfo.lights[0].position.xyz - input.posW.xyz);
-	//float lightRatio2 = saturate(dot(lightDirection, input.nrW));
-	//float attenuation = 1 - saturate(length(lightInfo.lights[0].position.xyz - input.posW.xyz) / 1.3);
-	//lightRatio2 = saturate(attenuation * attenuation * lightRatio2);
-	//lightRatio2 *= 366.3;
-	//result += (lightRatio2 * float4(meshInfo.material.Kd, 1) * lightInfo.lights[0].color);
-
-	return result + reflectedLight;
+	return (directional + pointSum) * float4(meshInfo.material.Kd, 1) + specular;
 }
 )";
 // Creation, Rendering & Cleanup
@@ -361,8 +370,11 @@ public:
 				for (int x = 0; x < levelData.meshCount[y]; x++)
 				{
 					memoryOffset += 256;
-					cmd->SetGraphicsRootConstantBufferView(1, levelData.constantBuffer->GetGPUVirtualAddress() + memoryOffset);
-					cmd->DrawIndexedInstanced(levelData.meshes[y][x].drawInfo.indexCount, 1, levelData.meshes[y][x].drawInfo.indexOffset + indexOffset, vertOffset, 0);
+					if (y != levelData.skyboxIndex)
+					{
+						cmd->SetGraphicsRootConstantBufferView(1, levelData.constantBuffer->GetGPUVirtualAddress() + memoryOffset);
+						cmd->DrawIndexedInstanced(levelData.meshes[y][x].drawInfo.indexCount, 1, levelData.meshes[y][x].drawInfo.indexOffset + indexOffset, vertOffset, 0);
+					}
 
 				}
 				indexOffset += levelData.indexCount[y];
@@ -370,13 +382,6 @@ public:
 			}
 			memoryOffset += 256;
 		}
-		/*for (int x = 0; x < levelData.meshCount[0]; x++)
-		{
-			memoryOffset += 256;
-			cmd->SetGraphicsRootConstantBufferView(1, levelData.constantBuffer->GetGPUVirtualAddress() + memoryOffset);
-			cmd->DrawIndexedInstanced(levelData.meshes[0][x].drawInfo.indexCount, 1, levelData.meshes[0][x].drawInfo.indexOffset + indexOffset, vertOffset, 0);
-
-		}*/
 		// release temp handles
 		cmd->Release();
 	}
@@ -465,12 +470,10 @@ public:
 
 	void swapLevel()
 	{
-		float semicolon = 0;
-		InputProxy.GetState(74, semicolon);
-		//OPENFILENAMEA fileInfo = {0};
-		if (semicolon == 1)
+		float f1State = 0;
+		InputProxy.GetState(74, f1State);
+		if (f1State == 1)
 		{
-			//GetOpenFileNameA(&fileInfo);
 			OPENFILENAMEA fileBox = { 0 };
 			char Buffer[300];
 			std::fill(Buffer, Buffer + 300, '\0');
@@ -487,14 +490,8 @@ public:
 			if (GetOpenFileNameA(&fileBox))
 			{
 				filename = fileBox.lpstrFile;
-				canRender = false;
 
-				/*levelData.indexBuffer->Release();
-				levelData.vertexBuffer->Release();
-				levelData.lightConstantBuffer->Release();
-				levelData.constantBuffer->Release();*/
-				//levelData.allIndexBuffer->Release();
-				//levelData.allIndexBuffer->Release();
+				//CLEAR VECTORS
 				names = {};
 				worldMatrices = {};
 				lightWorldMatrices = {};
@@ -508,9 +505,11 @@ public:
 				levelData.vertexCount = {};
 				levelData.indexCount = {};
 				levelData.lights = {};
+				levelData.lights2 = {};
 				levelData.meshData = {};
+
+				//LOAD THE NEW LEVEL
 				levelData.LoadLevel(creator, win, d3d);
-				canRender = true;
 			}
 		}
 	}
