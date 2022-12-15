@@ -5,6 +5,7 @@
 #include "d3dx12.h" // official helper file provided by microsoft
 #include <chrono>
 #include <ctime>
+#include <commdlg.h>
 
 
 //#define GATEWARE_PROXY_CLASS(GMatrix)
@@ -168,12 +169,12 @@ float4 main(OUTPUT_TO_RASTERIZER input) : SV_TARGET
 	//float4 point;
 	for(int i = 0; i < 1; i++)
 	{
-		float3 lightDirection = normalize(lightInfo.lights[i].position.xyz - input.posW.xyz);
+		float3 lightDirection = normalize(lightInfo.lights[3].position.xyz - input.posW.xyz);
 		float lightRatio2 = saturate(dot(lightDirection, input.nrW));
-		float attenuation = 1 - saturate(length(lightInfo.lights[i].position.xyz - input.posW.xyz) / lightInfo.lights[i].size);
+		float attenuation = 1 - saturate(length(lightInfo.lights[3].position.xyz - input.posW.xyz) / lightInfo.lights[3].size);
 		//lightRatio2 = saturate(attenuation * attenuation * lightRatio2);
 		//lightRatio2 *= 366.3;
-		result += (lightRatio2 * float4(meshInfo.material.Kd, 1) * lightInfo.lights[i].color);
+		result += (lightRatio2 * float4(meshInfo.material.Kd, 1) * lightInfo.lights[3].color);
 	}
 
 	//float3 lightDirection = normalize(lightInfo.lights[0].position.xyz - input.posW.xyz);
@@ -190,7 +191,7 @@ float4 main(OUTPUT_TO_RASTERIZER input) : SV_TARGET
 struct LIGHT_DATA
 {
 	Level_Data::light lights[16];
-	GW::MATH::GMATRIXF padding[3];
+	//GW::MATH::GMATRIXF padding[3];
 };
 
 struct SCENE_DATA
@@ -255,6 +256,7 @@ class Renderer
 	Microsoft::WRL::ComPtr <ID3D12DescriptorHeap> descriptorHeap;
 
 	UINT8* transferMemoryLocation3;
+	UINT8* transferMemoryLocation4;
 
 	D3D12_VERTEX_BUFFER_VIEW					vertexView;
 	Microsoft::WRL::ComPtr<ID3D12Resource>		vertexBuffer;
@@ -428,12 +430,15 @@ public:
 			D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(sizeof(lightData) * activeFrames),
 			D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&levelData.lightConstantBuffer));
 
+		memoryOffset = 0;
+
 		for (int i = 0; i < activeFrames; i++)
 		{
 			levelData.lightConstantBuffer->Map(0, &CD3DX12_RANGE(0, 0),
-				reinterpret_cast<void**>(&transferMemoryLocation3));
-			memcpy(transferMemoryLocation3, &lightData, sizeof(lightData));
+				reinterpret_cast<void**>(&transferMemoryLocation4));
+			memcpy(transferMemoryLocation4 + memoryOffset, &lightData, sizeof(lightData));
 			levelData.lightConstantBuffer->Unmap(0, nullptr);
+			memoryOffset += sizeof(lightData);
 		}
 
 		D3D12_DESCRIPTOR_HEAP_DESC heap = {};
@@ -444,7 +449,7 @@ public:
 
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 		cbvDesc.BufferLocation = levelData.constantBuffer->GetGPUVirtualAddress();
-		cbvDesc.SizeInBytes = sizeof(sceneData);
+		cbvDesc.SizeInBytes = memory / 2;
 
 		CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle0(descriptorHeap->GetCPUDescriptorHandleForHeapStart(), 0, 0);
 		creator->CreateConstantBufferView(&cbvDesc, cbvHandle0);
@@ -583,6 +588,13 @@ public:
 			}
 			memoryOffset += 256;
 		}
+		/*for (int x = 0; x < levelData.meshCount[0]; x++)
+		{
+			memoryOffset += 256;
+			cmd->SetGraphicsRootConstantBufferView(1, levelData.constantBuffer->GetGPUVirtualAddress() + memoryOffset);
+			cmd->DrawIndexedInstanced(levelData.meshes[0][x].drawInfo.indexCount, 1, levelData.meshes[0][x].drawInfo.indexOffset + indexOffset, vertOffset, 0);
+
+		}*/
 		// release temp handles
 		cmd->Release();
 	}
@@ -668,6 +680,35 @@ public:
 
 		Matproxy.InverseF(camera, view);
 	}
+
+	void swapLevel()
+	{
+		float semicolon = 0;
+		InputProxy.GetState(74, semicolon);
+		//OPENFILENAMEA fileInfo = {0};
+		if (semicolon == 1)
+		{
+			//GetOpenFileNameA(&fileInfo);
+			OPENFILENAMEA ofn = { 0 };
+			char Buffer[300];
+			std::fill(Buffer, Buffer + 300, '\0');
+			ofn.lStructSize = sizeof(OPENFILENAMEA);
+			ofn.lpstrFile = Buffer;
+			ofn.nMaxFile = 300;
+			ofn.Flags = OFN_EXPLORER;
+			ofn.lpstrFilter = NULL;
+			ofn.lpstrCustomFilter = NULL;
+			ofn.nFilterIndex = 0;
+			ofn.lpstrFileTitle = NULL;
+			ofn.lpstrInitialDir = NULL;
+			ofn.lpstrTitle = NULL;
+			if (GetOpenFileNameA(&ofn))
+			{
+				filename = ofn.lpstrFile;
+			}
+		}
+	}
+
 	~Renderer()
 	{
 		// ComPtr will auto release so nothing to do here 

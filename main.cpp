@@ -58,6 +58,7 @@ int main()
 						cmd->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
 						// TODO: Part 4b
 						renderer.UpdateCamera();
+						renderer.swapLevel();
 						renderer.Render(); // draw
 						d3d12.EndFrame(false);
 						cmd->Release();

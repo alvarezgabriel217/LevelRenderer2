@@ -3,10 +3,6 @@
 
 class Level_Data
 {
-	//unsigned vertexCount[10];
-	//unsigned indexCount[10];
-	//unsigned materialCount[10];
-
 public:
 	struct light
 	{
@@ -38,34 +34,28 @@ public:
 		openFile();
 		for (int i = 0; i < names.size(); i++)
 		{
-			if (parser.Parse(("../h2bs/" + names[i] + ".h2b").c_str()))
-			{
-				mats.push_back(parser.materials);
-				vertices.push_back(parser.vertices);
-				indices.push_back(parser.indices);
-				meshes.push_back(parser.meshes);
-				meshCount.push_back(parser.meshCount);
-				batches.push_back(parser.batches);
-				vertexCount.push_back(parser.vertexCount);
-				indexCount.push_back(parser.indexCount);
-				//std::cout << "Successful";
-			}
-			else
-			{
-				std::cout << "../h2bs/" + names[i] + ".h2b" << ": Failed to parse data" << std::endl;
-			}
+			//if (names[i].find('.') == std::string::npos)
+			//{
+				if (parser.Parse(("../h2bs/" + names[i] + ".h2b").c_str()))
+				{
+					mats.push_back(parser.materials);
+					vertices.push_back(parser.vertices);
+					indices.push_back(parser.indices);
+					meshes.push_back(parser.meshes);
+					meshCount.push_back(parser.meshCount);
+					batches.push_back(parser.batches);
+					vertexCount.push_back(parser.vertexCount);
+					indexCount.push_back(parser.indexCount);
+				}
+				else
+				{
+					std::cout << "../h2bs/" + names[i] + ".h2b" << ": Failed to parse data" << std::endl;
+				}
+			//}
 		}
 		for (int i = 0; i < lightColors.size(); i++)
 		{
-			lights.push_back({lightWorldMatrices[i].row4, lightColors[i], size[i] });
+			lights.push_back({ lightWorldMatrices[i].row4, lightColors[i], size[i] });
 		}
-
-		/*parser.Parse("../h2bs/Bookcase_Full_Cylinder.h2b");
-		mats.push_back(parser.materials);
-		vertices.push_back(parser.vertices);
-		indices[0] = parser.indices;
-		meshes[0] = parser.meshes;
-		meshCount.push_back(parser.meshCount);
-		batches[0] = parser.batches;*/
 	}
 };
