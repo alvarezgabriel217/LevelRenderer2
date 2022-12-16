@@ -7,6 +7,7 @@ std::ifstream input;
 
 std::vector<GW::MATH::GMATRIXF> worldMatrices;
 std::vector<GW::MATH::GMATRIXF> lightWorldMatrices;
+std::vector<GW::MATH::GMATRIXF> cameras;
 std::vector<std::string> names;
 std::vector<GW::MATH::GVECTORF> lightColors;
 std::vector<float> size;
@@ -144,6 +145,32 @@ void openFile()
 				buffer2 = buffer2.substr(buffer2.find(':') + 1);
 
 				size.push_back(atof(buffer2.c_str()));
+			}
+			else if (std::strcmp("CAMERA", buffer2.c_str()) == 0)
+			{
+				GW::MATH::GVECTORF rows[4];
+				std::getline(input, buffer2);
+
+				for (int i = 0; i < 4; i++)
+				{
+					std::getline(input, buffer2);
+					buffer2 = buffer2.substr(buffer2.find('(') + 1, buffer2.find(')') - buffer2.find('(') - 1);
+
+					rows[i].x = atof(buffer2.c_str());
+
+					buffer2 = buffer2.substr(buffer2.find(',') + 1);
+
+					rows[i].y = atof(buffer2.c_str());
+
+					buffer2 = buffer2.substr(buffer2.find(',') + 1);
+
+					rows[i].z = atof(buffer2.c_str());
+
+					buffer2 = buffer2.substr(buffer2.find(',') + 1);
+
+					rows[i].w = atof(buffer2.c_str());
+				}
+				cameras.push_back(GW::MATH::GMATRIXF{ rows[0], rows[1], rows[2], rows[3] });
 			}
 		}
 

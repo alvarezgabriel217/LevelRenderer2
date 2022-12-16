@@ -334,6 +334,33 @@ public:
 	void Render()
 	{
 		// grab the context & render target
+		win.GetHeight(levelData.height);
+		win.GetWidth(levelData.width);
+
+		levelData.m_viewport[0].Height = levelData.height;
+		levelData.m_viewport[0].Width = levelData.width / 2;
+		levelData.m_viewport[0].MinDepth = 0;
+		levelData.m_viewport[0].MaxDepth = 1;
+		levelData.m_viewport[0].TopLeftX = 0;
+		levelData.m_viewport[0].TopLeftY = 0;
+
+		levelData.m_scissorRect[0].left = 0;
+		levelData.m_scissorRect[0].right = levelData.width / 2;
+		levelData.m_scissorRect[0].bottom = levelData.height;
+		levelData.m_scissorRect[0].top = 0;
+
+		levelData.m_viewport[1].Height = levelData.height;
+		levelData.m_viewport[1].Width = levelData.width / 2;
+		levelData.m_viewport[1].MinDepth = 0;
+		levelData.m_viewport[1].MaxDepth = 1;
+		levelData.m_viewport[1].TopLeftX = levelData.width / 2;
+		levelData.m_viewport[1].TopLeftY = 0;
+
+		levelData.m_scissorRect[1].left = levelData.width / 2;
+		levelData.m_scissorRect[1].right = levelData.width;
+		levelData.m_scissorRect[1].bottom = levelData.height;
+		levelData.m_scissorRect[1].top = 0;
+
 
 		levelData.sceneData.viewMatrix = levelData.view;
 		levelData.constantBuffer->Map(0, &CD3DX12_RANGE(0, 0),
@@ -349,6 +376,8 @@ public:
 		d3d.GetDepthStencilView((void**)&dsv);
 		// setup the pipeline
 		cmd->SetGraphicsRootSignature(levelData.rootSignature.Get());
+		cmd->RSSetViewports(1, &levelData.m_viewport[0]);
+		cmd->RSSetScissorRects(1, &levelData.m_scissorRect[0]);
 		ID3D12DescriptorHeap* ppHeaps[] = { levelData.descriptorHeap.Get() };
 		cmd->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 		cmd->SetGraphicsRootConstantBufferView(0, levelData.constantBuffer->GetGPUVirtualAddress());
@@ -359,6 +388,8 @@ public:
 		cmd->IASetVertexBuffers(0, 1, &levelData.vertexView);
 		cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		cmd->IASetIndexBuffer(&levelData.indexView);
+
+		//cmd->RSSetViewports(1, levelData.minimap);
 
 		int vertOffset = 0;
 		int indexOffset = 0;
@@ -382,6 +413,33 @@ public:
 			}
 			memoryOffset += 256;
 		}
+
+		cmd->RSSetViewports(1, &levelData.m_viewport[1]);
+		cmd->RSSetScissorRects(1, &levelData.m_scissorRect[1]);
+
+		vertOffset = 0;
+		indexOffset = 0;
+		memoryOffset = 0;
+		for (int i = 0; i < levelData.activeFrames; i++)
+		{
+			for (int y = 0; y < levelData.vertices.size(); y++)
+			{
+				for (int x = 0; x < levelData.meshCount[y]; x++)
+				{
+					memoryOffset += 256;
+					if (y != levelData.skyboxIndex)
+					{
+						cmd->SetGraphicsRootConstantBufferView(1, levelData.constantBuffer->GetGPUVirtualAddress() + memoryOffset);
+						cmd->DrawIndexedInstanced(levelData.meshes[y][x].drawInfo.indexCount, 1, levelData.meshes[y][x].drawInfo.indexOffset + indexOffset, vertOffset, 0);
+					}
+
+				}
+				indexOffset += levelData.indexCount[y];
+				vertOffset += levelData.vertexCount[y];
+			}
+			memoryOffset += 256;
+		}
+
 		// release temp handles
 		cmd->Release();
 	}
@@ -465,7 +523,33 @@ public:
 			Matproxy.RotateYGlobalF(levelData.camera, Total_Yaw, levelData.camera);
 		}
 
+		/*float f2State = 0;
+		if (GetAsyncKeyState(VK_F2) & 0x1)
+		{
+
+			InputProxy.GetState(75, f2State);
+			if (f2State == 1)
+			{
+				std::cout << "Pressed";
+				if (levelData.cameraId != cameras.size() - 1)
+				{
+					levelData.cameraId++;
+				}
+				else
+				{
+					levelData.cameraId = 0;
+				}
+				levelData.view = cameras[levelData.cameraId];
+			}
+		}*/
+
+
+		if (swapCamera())
+		{
+			Matproxy.InverseF(cameras[levelData.cameraId], levelData.camera);
+		}
 		Matproxy.InverseF(levelData.camera, levelData.view);
+
 	}
 
 	void swapLevel()
@@ -512,6 +596,25 @@ public:
 				levelData.LoadLevel(creator, win, d3d);
 			}
 		}
+	}
+
+	bool swapCamera()
+	{
+		float f2State = 0;
+		if (GetAsyncKeyState(VK_F2) & 0x1)
+		{
+			std::cout << "Pressed";
+			if (levelData.cameraId != cameras.size() - 1)
+			{
+				levelData.cameraId++;
+			}
+			else
+			{
+				levelData.cameraId = 0;
+			}
+			return true;
+		}
+		return false;
 	}
 
 	~Renderer()

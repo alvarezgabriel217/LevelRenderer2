@@ -112,16 +112,33 @@ public:
 	Microsoft::WRL::ComPtr<ID3D12Resource>		indexBuffer;
 	Microsoft::WRL::ComPtr<ID3D12RootSignature>	rootSignature;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState>	pipeline;
+	D3D12_VIEWPORT m_viewport[2];
+	D3D12_RECT m_scissorRect[2];
+	unsigned int width;
+	unsigned int height;
+
+	int cameraId = 0;
 
 	//SKYBOX
 	unsigned skyboxIndex;
 	Microsoft::WRL::ComPtr<ID3D12Resource>			textureResource;
 	Microsoft::WRL::ComPtr<ID3D12Resource>			textureUpload;
 
+	//MULTIPLE VIEWPORTS
+	//D3D12_VIEWPORT minimap[1];
+	//ID3D12GraphicsCommandList
+	
+	
+
 	void ParseStuff()
 	{
 		H2B::Parser parser;
 		openFile();
+
+		for (int i = 0; i < cameras.size(); i++)
+		{
+			Matproxy.InverseF(cameras[i], cameras[i]);
+		}
 		for (int i = 0; i < names.size(); i++)
 		{
 			//if (names[i].find('.') == std::string::npos)
@@ -155,6 +172,33 @@ public:
 
 	void LoadLevel(ID3D12Device* creator, GW::SYSTEM::GWindow win, GW::GRAPHICS::GDirectX12Surface d3d)
 	{
+		win.GetHeight(height);
+		win.GetWidth(width);
+
+		m_viewport[0].Height = height;
+		m_viewport[0].Width = width/2;
+		m_viewport[0].MinDepth = 0;
+		m_viewport[0].MaxDepth = 1;
+		m_viewport[0].TopLeftX = 0;
+		m_viewport[0].TopLeftY = 0;
+
+		m_scissorRect[0].left = 0;
+		m_scissorRect[0].right = width/2;
+		m_scissorRect[0].bottom = height;
+		m_scissorRect[0].top = 0;
+
+		m_viewport[1].Height = height;
+		m_viewport[1].Width = width/2;
+		m_viewport[1].MinDepth = 0;
+		m_viewport[1].MaxDepth = 1;
+		m_viewport[1].TopLeftX = width/2;
+		m_viewport[1].TopLeftY = 0;
+
+		m_scissorRect[1].left = width/2;
+		m_scissorRect[1].right = width;
+		m_scissorRect[1].bottom = height;
+		m_scissorRect[1].top = 0;
+
 		ParseStuff();
 		transferMemoryLocation3 = 0;
 		transferMemoryLocation4 = 0;
@@ -163,9 +207,22 @@ public:
 
 		//MATRIX STUFF
 
-		world = worldMatrices[0];
+		//world = worldMatrices[0];
 
-		Matproxy.LookAtLHF(GW::MATH::GVECTORF{ world.row4.x - 10,  world.row4.y - 10, world.row4.z - 10, 0 }, GW::MATH::GVECTORF{ world.row4.x,  world.row4.y, world.row4.z, 0 }, GW::MATH::GVECTORF{ 0, 1, 0, 0 }, view);
+		//Matproxy.LookAtLHF(GW::MATH::GVECTORF{ world.row4.x - 10,  world.row4.y - 10, world.row4.z - 10, 0 }, GW::MATH::GVECTORF{ world.row4.x,  world.row4.y, world.row4.z, 0 }, GW::MATH::GVECTORF{ 0, 1, 0, 0 }, view);
+		/*Matproxy.LookAtLHF(GW::MATH::GVECTORF{ 291.17f, -5.117f, 192, 0 }, GW::MATH::GVECTORF{0, 0, 0, 0 }, GW::MATH::GVECTORF{ 0, 1, 0, 0 }, view);
+		Matproxy.RotateXLocalF(view, 54.2f * 3.14/180, view);
+		Matproxy.RotateZLocalF(view, 0.31 * 3.14 / 180, view);
+		Matproxy.RotateYLocalF(view, 1.44 * 3.14 / 180, view);*/
+		/*view = {
+			-0.9975, -0.0017,  0.0712, 0.0000,
+			-0.0097,  0.9936, -0.1129, 0.0000,
+			-0.0705, -0.1134, -0.9910, 0.0000,
+			447.3570, 67.1423, 57.9104, 1.0000
+		};
+		Matproxy.InverseF(view, view);*/
+
+		view = cameras[cameraId];
 		sceneData.viewMatrix = view;
 		Matproxy.InverseF(view, camera);
 
