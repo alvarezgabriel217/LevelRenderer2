@@ -337,28 +337,30 @@ public:
 		win.GetHeight(levelData.height);
 		win.GetWidth(levelData.width);
 
+		//UPDATES THE FIRST VIEPORT IN CASE THE SCREEN HAS BEEN RESIZED
 		levelData.m_viewport[0].Height = levelData.height;
-		levelData.m_viewport[0].Width = levelData.width / 2;
-		levelData.m_viewport[0].MinDepth = 0;
+		levelData.m_viewport[0].Width = levelData.width;
+		levelData.m_viewport[0].MinDepth = 0.5f;
 		levelData.m_viewport[0].MaxDepth = 1;
 		levelData.m_viewport[0].TopLeftX = 0;
 		levelData.m_viewport[0].TopLeftY = 0;
 
 		levelData.m_scissorRect[0].left = 0;
-		levelData.m_scissorRect[0].right = levelData.width / 2;
+		levelData.m_scissorRect[0].right = levelData.width;
 		levelData.m_scissorRect[0].bottom = levelData.height;
 		levelData.m_scissorRect[0].top = 0;
 
-		levelData.m_viewport[1].Height = levelData.height;
-		levelData.m_viewport[1].Width = levelData.width / 2;
+		//UPDATES THE SECOND VIEWPORT (MINIMAP) IN CASE THE SCREEN HAS BEEN RESIZED
+		levelData.m_viewport[1].Height = levelData.height / 3;
+		levelData.m_viewport[1].Width = levelData.width / 3;
 		levelData.m_viewport[1].MinDepth = 0;
-		levelData.m_viewport[1].MaxDepth = 1;
-		levelData.m_viewport[1].TopLeftX = levelData.width / 2;
+		levelData.m_viewport[1].MaxDepth = 0.5f;
+		levelData.m_viewport[1].TopLeftX = 0;
 		levelData.m_viewport[1].TopLeftY = 0;
 
-		levelData.m_scissorRect[1].left = levelData.width / 2;
-		levelData.m_scissorRect[1].right = levelData.width;
-		levelData.m_scissorRect[1].bottom = levelData.height;
+		levelData.m_scissorRect[1].left = 0;
+		levelData.m_scissorRect[1].right = levelData.width / 3;
+		levelData.m_scissorRect[1].bottom = levelData.height / 3;
 		levelData.m_scissorRect[1].top = 0;
 
 
@@ -376,6 +378,7 @@ public:
 		d3d.GetDepthStencilView((void**)&dsv);
 		// setup the pipeline
 		cmd->SetGraphicsRootSignature(levelData.rootSignature.Get());
+		//SETS THE FIRST VIEWPORT
 		cmd->RSSetViewports(1, &levelData.m_viewport[0]);
 		cmd->RSSetScissorRects(1, &levelData.m_scissorRect[0]);
 		ID3D12DescriptorHeap* ppHeaps[] = { levelData.descriptorHeap.Get() };
@@ -389,7 +392,7 @@ public:
 		cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		cmd->IASetIndexBuffer(&levelData.indexView);
 
-		//cmd->RSSetViewports(1, levelData.minimap);
+		//DRAWS ON THE FIRST VIEWPORT
 
 		int vertOffset = 0;
 		int indexOffset = 0;
@@ -414,9 +417,11 @@ public:
 			memoryOffset += 256;
 		}
 
+		//SETS THE SECOND VIEWPORT (MINIMAP)
 		cmd->RSSetViewports(1, &levelData.m_viewport[1]);
 		cmd->RSSetScissorRects(1, &levelData.m_scissorRect[1]);
 
+		//DRAWS ON THE SECOND VIEWPORT (MINIMAP)
 		vertOffset = 0;
 		indexOffset = 0;
 		memoryOffset = 0;
@@ -523,27 +528,6 @@ public:
 			Matproxy.RotateYGlobalF(levelData.camera, Total_Yaw, levelData.camera);
 		}
 
-		/*float f2State = 0;
-		if (GetAsyncKeyState(VK_F2) & 0x1)
-		{
-
-			InputProxy.GetState(75, f2State);
-			if (f2State == 1)
-			{
-				std::cout << "Pressed";
-				if (levelData.cameraId != cameras.size() - 1)
-				{
-					levelData.cameraId++;
-				}
-				else
-				{
-					levelData.cameraId = 0;
-				}
-				levelData.view = cameras[levelData.cameraId];
-			}
-		}*/
-
-
 		if (swapCamera())
 		{
 			Matproxy.InverseF(cameras[levelData.cameraId], levelData.camera);
@@ -575,11 +559,12 @@ public:
 			{
 				filename = fileBox.lpstrFile;
 
-				//CLEAR VECTORS
+				//CLEAR DATA
 				names = {};
 				worldMatrices = {};
 				lightWorldMatrices = {};
 				lightColors = {};
+				cameras = {};
 				levelData.indices = {};
 				levelData.vertices = {};
 				levelData.mats = {};
@@ -591,6 +576,7 @@ public:
 				levelData.lights = {};
 				levelData.lights2 = {};
 				levelData.meshData = {};
+				levelData.cameraId = 0;
 
 				//LOAD THE NEW LEVEL
 				levelData.LoadLevel(creator, win, d3d);
@@ -603,16 +589,19 @@ public:
 		float f2State = 0;
 		if (GetAsyncKeyState(VK_F2) & 0x1)
 		{
-			std::cout << "Pressed";
-			if (levelData.cameraId != cameras.size() - 1)
+			if (cameras.size() > 0)
 			{
-				levelData.cameraId++;
+
+				if (levelData.cameraId != cameras.size() - 1)
+				{
+					levelData.cameraId++;
+				}
+				else
+				{
+					levelData.cameraId = 0;
+				}
+				return true;
 			}
-			else
-			{
-				levelData.cameraId = 0;
-			}
-			return true;
 		}
 		return false;
 	}

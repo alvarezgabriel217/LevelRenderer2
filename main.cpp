@@ -11,6 +11,7 @@
 #define GATEWARE_ENABLE_MATH
 // TODO: Part 4a
 #define GATEWARE_ENABLE_INPUT
+#define GATEWARE_ENABLE_AUDIO
 // With what we want & what we don't defined we can include the API
 #include "../Gateware/Gateware.h"
 #include "h2bParser.h"

@@ -65,6 +65,10 @@ public:
 	GW::INPUT::GInput InputProxy;
 	GW::INPUT::GController ControllerProxy;
 	GW::MATH::GMatrix Matproxy;
+	GW::AUDIO::GAudio audioProxy;
+
+	GW::AUDIO::GMusic music;
+	GW::AUDIO::GSound sound;
 
 	//MATRICES
 	GW::MATH::GMATRIXF world;
@@ -83,8 +87,6 @@ public:
 	std::chrono::high_resolution_clock::time_point end;
 	bool running = false;
 	float timeChange;
-
-	float aspectRatio;
 
 
 	//STRUCTS
@@ -105,7 +107,7 @@ public:
 	Microsoft::WRL::ComPtr <ID3D12DescriptorHeap> descriptorHeap;
 
 
-	//VIEWS
+	//VIEWS AND OTHER
 	D3D12_VERTEX_BUFFER_VIEW					vertexView;
 	Microsoft::WRL::ComPtr<ID3D12Resource>		vertexBuffer;
 	D3D12_INDEX_BUFFER_VIEW						indexView;
@@ -116,19 +118,13 @@ public:
 	D3D12_RECT m_scissorRect[2];
 	unsigned int width;
 	unsigned int height;
-
 	int cameraId = 0;
+	float aspectRatio;
 
 	//SKYBOX
 	unsigned skyboxIndex;
 	Microsoft::WRL::ComPtr<ID3D12Resource>			textureResource;
 	Microsoft::WRL::ComPtr<ID3D12Resource>			textureUpload;
-
-	//MULTIPLE VIEWPORTS
-	//D3D12_VIEWPORT minimap[1];
-	//ID3D12GraphicsCommandList
-	
-	
 
 	void ParseStuff()
 	{
@@ -175,28 +171,31 @@ public:
 		win.GetHeight(height);
 		win.GetWidth(width);
 
+		//CREATE THE FIRST VIEWPORT
 		m_viewport[0].Height = height;
-		m_viewport[0].Width = width/2;
-		m_viewport[0].MinDepth = 0;
+		m_viewport[0].Width = width;
+		m_viewport[0].MinDepth = 0.5f;
 		m_viewport[0].MaxDepth = 1;
 		m_viewport[0].TopLeftX = 0;
 		m_viewport[0].TopLeftY = 0;
 
 		m_scissorRect[0].left = 0;
-		m_scissorRect[0].right = width/2;
+		m_scissorRect[0].right = width;
 		m_scissorRect[0].bottom = height;
 		m_scissorRect[0].top = 0;
 
-		m_viewport[1].Height = height;
-		m_viewport[1].Width = width/2;
+
+		//CREATE THE SECOND VIEWPORT (MINIMAP)
+		m_viewport[1].Height = height / 3;
+		m_viewport[1].Width = width / 3;
 		m_viewport[1].MinDepth = 0;
-		m_viewport[1].MaxDepth = 1;
-		m_viewport[1].TopLeftX = width/2;
+		m_viewport[1].MaxDepth = 0.5f;
+		m_viewport[1].TopLeftX = 0;
 		m_viewport[1].TopLeftY = 0;
 
-		m_scissorRect[1].left = width/2;
-		m_scissorRect[1].right = width;
-		m_scissorRect[1].bottom = height;
+		m_scissorRect[1].left = 0;
+		m_scissorRect[1].right = width / 3;
+		m_scissorRect[1].bottom = height / 3;
 		m_scissorRect[1].top = 0;
 
 		ParseStuff();
@@ -204,27 +203,29 @@ public:
 		transferMemoryLocation4 = 0;
 
 		Matproxy.Create();
+		audioProxy.Create();
 
-		//MATRIX STUFF
+		music.Create(("../Audio/" + musicNames[1]).c_str(), audioProxy, 0.05f);
+		sound.Create(("../Audio/" + musicNames[0]).c_str(), audioProxy, 0.2f);
+		audioProxy.PlayMusic();
+		audioProxy.PlaySounds();
 
-		//world = worldMatrices[0];
 
-		//Matproxy.LookAtLHF(GW::MATH::GVECTORF{ world.row4.x - 10,  world.row4.y - 10, world.row4.z - 10, 0 }, GW::MATH::GVECTORF{ world.row4.x,  world.row4.y, world.row4.z, 0 }, GW::MATH::GVECTORF{ 0, 1, 0, 0 }, view);
-		/*Matproxy.LookAtLHF(GW::MATH::GVECTORF{ 291.17f, -5.117f, 192, 0 }, GW::MATH::GVECTORF{0, 0, 0, 0 }, GW::MATH::GVECTORF{ 0, 1, 0, 0 }, view);
-		Matproxy.RotateXLocalF(view, 54.2f * 3.14/180, view);
-		Matproxy.RotateZLocalF(view, 0.31 * 3.14 / 180, view);
-		Matproxy.RotateYLocalF(view, 1.44 * 3.14 / 180, view);*/
-		/*view = {
-			-0.9975, -0.0017,  0.0712, 0.0000,
-			-0.0097,  0.9936, -0.1129, 0.0000,
-			-0.0705, -0.1134, -0.9910, 0.0000,
-			447.3570, 67.1423, 57.9104, 1.0000
-		};
-		Matproxy.InverseF(view, view);*/
+	//MATRIX STUFF
 
-		view = cameras[cameraId];
-		sceneData.viewMatrix = view;
-		Matproxy.InverseF(view, camera);
+
+		if (cameras.size() > 0) //Checks if there's any cameras, if not then the view matrix will point at the first object loaded.
+		{
+
+			view = cameras[cameraId];
+			sceneData.viewMatrix = view;
+			Matproxy.InverseF(view, camera);
+		}
+		else
+		{
+			world = worldMatrices[0];
+			Matproxy.LookAtLHF(GW::MATH::GVECTORF{ world.row4.x - 10,  world.row4.y - 10, world.row4.z - 10, 0 }, GW::MATH::GVECTORF{ world.row4.x,  world.row4.y, world.row4.z, 0 }, GW::MATH::GVECTORF{ 0, 1, 0, 0 }, view);
+		}
 
 		Matproxy.ProjectionDirectXLHF(1.1345f, aspectRatio, 0.1, 500, perspective);
 		sceneData.projectionMatrix = perspective;
@@ -266,13 +267,11 @@ public:
 		for (int i = 0; i < lights.size(); i++)
 		{
 			lightData.lights[i] = lights[i];
-			//GW::MATH::GVector::NormalizeF(lightData.lights[i].position, lightData.lights[i].position);
 		}
 
 		for (int i = 0; i < lights2.size(); i++)
 		{
 			lightData2.lights[i] = lights2[i];
-			//GW::MATH::GVector::NormalizeF(lightData.lights[i].position, lightData.lights[i].position);
 		}
 
 
